@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { AIJob, AISettings, AIJobType, AIJobStatus } from '../types/ai';
 
 interface AIState {
@@ -20,18 +21,20 @@ interface AIState {
   getActiveJobsCount: () => number;
 }
 
-export const useAIStore = create<AIState>((set, get) => ({
-  jobs: [],
-  settings: {
-    activeProviderId: 'mock',
-    providers: [
-      { id: 'mock', name: 'Standard AI Assistant', type: 'mock', enabled: true },
-      { id: 'gemini', name: 'Google Gemini Pro', type: 'cloud', enabled: false },
-      { id: 'local', name: 'Local Workers (RIFE/MiDaS)', type: 'local', enabled: false },
-    ],
-    autoApplyResults: false,
-    maxConcurrentJobs: 2,
-  },
+export const useAIStore = create<AIState>()(
+  persist(
+    (set, get) => ({
+      jobs: [],
+      settings: {
+        activeProviderId: 'mock',
+        providers: [
+          { id: 'mock', name: 'Standard AI Assistant', type: 'mock', enabled: true },
+          { id: 'gemini', name: 'Google Gemini Pro', type: 'cloud', enabled: false },
+          { id: 'local', name: 'Local Workers (RIFE/MiDaS)', type: 'local', enabled: false },
+        ],
+        autoApplyResults: false,
+        maxConcurrentJobs: 2,
+      },
 
   addJob: (type, sourceId, config) => {
     const jobId = crypto.randomUUID();
@@ -102,4 +105,10 @@ export const useAIStore = create<AIState>((set, get) => ({
   getActiveJobsCount: () => {
     return get().jobs.filter(j => j.status === 'processing' || j.status === 'queued').length;
   },
-}));
+}),
+{
+  name: 'sap_ai_store_persist',
+  partialize: (state) => ({ settings: state.settings }),
+}
+)
+);
