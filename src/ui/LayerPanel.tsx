@@ -210,6 +210,33 @@ export const LayerPanel = () => {
               className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
             />
           </div>
+          <div className="space-y-1 pt-1">
+            <div className="flex items-center justify-between text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+              <span>Layer Duration (Frames)</span>
+              <span className="text-emerald-400">{(selectedLayer.duration || comp.duration)}f</span>
+            </div>
+            <input 
+              type="number"
+              min="1"
+              max="2000"
+              value={selectedLayer.duration || comp.duration}
+              onChange={(e) => {
+                const val = Math.max(1, parseInt(e.target.value) || 1);
+                updateLayer(selectedLayer.id, { duration: val });
+                
+                // Recalculate and update composition duration if needed
+                const store = useProjectStore.getState();
+                if (store.currentProject) {
+                  const activeComp = store.currentProject.compositions.find(c => c.id === store.currentProject!.activeCompositionId);
+                  if (activeComp) {
+                    const maxDur = Math.max(100, ...activeComp.layers.map(l => (l.startTime || 0) + (l.id === selectedLayer.id ? val : (l.duration || 0))));
+                    store.updateComposition(activeComp.id, { duration: maxDur });
+                  }
+                }
+              }}
+              className="w-full bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-300 rounded px-2 py-1.5 outline-none focus:border-emerald-500/50 transition-colors font-mono"
+            />
+          </div>
         </div>
       )}
 
