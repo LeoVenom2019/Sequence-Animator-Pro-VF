@@ -151,7 +151,33 @@ async function startServer() {
         }
       });
 
-      const suggestions = JSON.parse(response.text || "[]");
+      let responseText = response.text || "[]";
+      
+      // Clean up markdown code fences if present
+      if (responseText.includes("```")) {
+        const match = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (match) {
+          responseText = match[1];
+        }
+      }
+      
+      // Fallback: search for first [ and last ] to extract array
+      if (!responseText.trim().startsWith("[")) {
+        const startIdx = responseText.indexOf("[");
+        const endIdx = responseText.lastIndexOf("]");
+        if (startIdx !== -1 && endIdx !== -1) {
+          responseText = responseText.substring(startIdx, endIdx + 1);
+        }
+      }
+
+      let suggestions = [];
+      try {
+        suggestions = JSON.parse(responseText.trim());
+      } catch (parseErr: any) {
+        console.error("Gemini raw text output:", response.text);
+        return res.status(500).json({ error: `Failed to parse AI suggestions JSON: ${parseErr.message}` });
+      }
+
       res.json({ suggestions });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -204,7 +230,33 @@ async function startServer() {
         }
       });
 
-      const analysis = JSON.parse(response.text || "{}");
+      let responseText = response.text || "{}";
+      
+      // Clean up markdown code fences if present
+      if (responseText.includes("```")) {
+        const match = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (match) {
+          responseText = match[1];
+        }
+      }
+      
+      // Fallback: search for first { and last } to extract object
+      if (!responseText.trim().startsWith("{")) {
+        const startIdx = responseText.indexOf("{");
+        const endIdx = responseText.lastIndexOf("}");
+        if (startIdx !== -1 && endIdx !== -1) {
+          responseText = responseText.substring(startIdx, endIdx + 1);
+        }
+      }
+
+      let analysis = {};
+      try {
+        analysis = JSON.parse(responseText.trim());
+      } catch (parseErr: any) {
+        console.error("Gemini raw depth-map output:", response.text);
+        return res.status(500).json({ error: `Failed to parse AI depth analysis JSON: ${parseErr.message}` });
+      }
+
       res.json({ analysis });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
