@@ -696,8 +696,37 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       if (!state.currentProject) return state;
       const project = state.currentProject;
       const comp = project.compositions.find(c => c.id === project.activeCompositionId)!;
-      const layerId = comp.selectedLayerId;
-      if (!layerId) return state;
+      
+      // Find suitable sequence layer (selected or first available)
+      let targetLayer = comp.layers.find(l => l.id === comp.selectedLayerId && l.type === 'sequence');
+      if (!targetLayer) {
+        targetLayer = comp.layers.find(l => l.type === 'sequence');
+      }
+
+      let updatedLayers = [...comp.layers];
+      let newSelectedLayerId = comp.selectedLayerId;
+
+      if (!targetLayer) {
+        // No sequence layer exists, create a brand new one
+        const newSeqLayer = createLayer('Imported Sequence', 'sequence');
+        newSeqLayer.frames = [...newFrames];
+        newSeqLayer.duration = newFrames.length;
+        updatedLayers = [newSeqLayer, ...updatedLayers];
+        newSelectedLayerId = newSeqLayer.id;
+      } else {
+        // Append to existing sequence layer
+        updatedLayers = comp.layers.map(l => l.id === targetLayer!.id ? {
+          ...l,
+          frames: [...(l.frames || []), ...newFrames].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
+          duration: Math.max(l.duration, (l.frames?.length || 0) + newFrames.length)
+        } : l);
+      }
+
+      // Calculate total composition duration dynamically
+      const maxLayerDuration = Math.max(
+        100, 
+        ...updatedLayers.map(l => (l.startTime || 0) + (l.duration || 0))
+      );
 
       return {
         currentProject: {
@@ -705,11 +734,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           compositions: project.compositions.map(c => 
             c.id === project.activeCompositionId ? {
               ...c,
-              layers: c.layers.map(l => l.id === layerId && l.type === 'sequence' ? {
-                ...l,
-                frames: [...(l.frames || []), ...newFrames].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
-                duration: Math.max(l.duration, (l.frames?.length || 0) + newFrames.length)
-              } : l)
+              layers: updatedLayers,
+              selectedLayerId: newSelectedLayerId,
+              duration: maxLayerDuration
             } : c
           ),
           updatedAt: Date.now()

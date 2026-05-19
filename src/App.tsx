@@ -17,7 +17,9 @@ import { AnimatePresence, motion } from 'motion/react';
 export default function App() {
   const { currentProject, setProject } = useProjectStore();
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const hasFrames = (currentProject?.compositions[0].layers.length ?? 0) > 0;
+  const hasFrames = (currentProject?.compositions[0].layers.some(
+    l => (l.type === 'sequence' && l.frames && l.frames.length > 0) || l.type !== 'sequence'
+  ) ?? false);
 
   // Persistence
   useEffect(() => {
