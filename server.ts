@@ -16,6 +16,10 @@ const _dirname = typeof import.meta !== "undefined" && import.meta.url
   ? dirname(_filename) 
   : __dirname;
 
+const isProd = process.env.NODE_ENV === 'production' || _filename.endsWith('.cjs');
+
+
+
 
 async function startServer() {
   const app = express();
@@ -49,7 +53,6 @@ async function startServer() {
 
     // Start worker
     try {
-      const isProd = process.env.NODE_ENV === 'production';
       const workerExt = isProd ? '.cjs' : '.ts';
       const workerPath = path.join(_dirname, isProd ? "src/server/workers/exportWorker.cjs" : "src/server/workers/exportWorker.ts");
       
@@ -228,7 +231,7 @@ async function startServer() {
   app.use("/exports", express.static(EXPORT_DIR));
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (!isProd) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
