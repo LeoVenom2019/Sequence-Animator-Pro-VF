@@ -89,35 +89,70 @@ export const ExportPanel = ({ isOpen, onClose }: ExportPanelProps) => {
       ctx.scale(lScale, lScale);
 
       if (layer.type === 'sequence' && layer.frames?.length > 0) {
+        const duration = layer.duration || comp.duration;
         const layerFrameIndex = frameIndex - (layer.startTime || 0);
-        if (layerFrameIndex >= 0 && layerFrameIndex < layer.frames.length) {
-          const frame = layer.frames[layerFrameIndex];
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.src = frame.url;
-          await new Promise((resolve) => {
-            img.onload = () => {
-              const imgAspect = img.width / img.height;
-              const canvasAspect = width / height;
-              let drawWidth, drawHeight;
-              if (imgAspect > canvasAspect) {
-                drawWidth = width;
-                drawHeight = width / imgAspect;
-              } else {
-                drawHeight = height;
-                drawWidth = height * imgAspect;
-              }
+        
+        if (layerFrameIndex >= 0 && layerFrameIndex < duration) {
+          const numFrames = layer.frames.length;
+          
+          // Calculate float virtual index
+          const virtualIndex = duration > 1 
+            ? (layerFrameIndex / (duration - 1)) * (numFrames - 1)
+            : 0;
+            
+          const indexA = Math.floor(virtualIndex);
+          const indexB = Math.min(numFrames - 1, indexA + 1);
+          const blendFactor = virtualIndex - indexA;
 
-              ctx.save();
-              applyPreProcessing(ctx, layer.colorGrading);
-              if (blurAmount > 0) ctx.filter = (ctx.filter === 'none' ? '' : ctx.filter + ' ') + `blur(${blurAmount}px)`;
-              ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-              applyPostProcessing(ctx, canvas, layer.effects);
-              ctx.restore();
-              resolve(null);
-            };
-            img.onerror = () => resolve(null);
-          });
+          const frameA = layer.frames[indexA];
+          const frameB = layer.frames[indexB];
+
+          const imgA = new Image();
+          imgA.crossOrigin = "anonymous";
+          imgA.src = frameA.url;
+          
+          const imgB = new Image();
+          imgB.crossOrigin = "anonymous";
+          imgB.src = frameB.url;
+
+          await Promise.all([
+            new Promise((resolve) => {
+              imgA.onload = () => resolve(null);
+              imgA.onerror = () => resolve(null);
+            }),
+            new Promise((resolve) => {
+              imgB.onload = () => resolve(null);
+              imgB.onerror = () => resolve(null);
+            })
+          ]);
+
+          const imgAspect = imgA.width / imgA.height;
+          const canvasAspect = width / height;
+          let drawWidth, drawHeight;
+          if (imgAspect > canvasAspect) {
+            drawWidth = width;
+            drawHeight = width / imgAspect;
+          } else {
+            drawHeight = height;
+            drawWidth = height * imgAspect;
+          }
+
+          ctx.save();
+          applyPreProcessing(ctx, layer.colorGrading);
+          if (blurAmount > 0) ctx.filter = (ctx.filter === 'none' ? '' : ctx.filter + ' ') + `blur(${blurAmount}px)`;
+          
+          if (indexA === indexB) {
+            ctx.drawImage(imgA, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+          } else {
+            ctx.globalAlpha = 1 - blendFactor;
+            ctx.drawImage(imgA, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+            ctx.globalAlpha = blendFactor;
+            ctx.drawImage(imgB, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+          }
+          
+          ctx.globalAlpha = 1.0; // Reset alpha
+          applyPostProcessing(ctx, canvas, layer.effects);
+          ctx.restore();
         }
       } else if (layer.type === 'solid') {
         ctx.fillStyle = layer.solidColor || '#ff0000';

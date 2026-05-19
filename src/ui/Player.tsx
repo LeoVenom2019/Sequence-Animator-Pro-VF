@@ -118,27 +118,54 @@ export const Player = () => {
         ctx.scale(lScale, lScale);
 
         if (layer.type === 'sequence' && layer.frames && layer.frames.length > 0) {
+          const duration = layer.duration || comp.duration;
           const layerFrameIndex = currentFrameIndex - (layer.startTime || 0);
-          if (layerFrameIndex >= 0 && layerFrameIndex < layer.frames.length) {
-            const frame = layer.frames[layerFrameIndex];
+          
+          if (layerFrameIndex >= 0 && layerFrameIndex < duration) {
+            const numFrames = layer.frames.length;
             
-            // Retrieve or create cached image instance
-            let img = imageCacheRef.current.get(frame.id);
-            if (!img) {
-              img = new Image();
-              img.src = frame.url;
-              imageCacheRef.current.set(frame.id, img);
+            // Calculate float virtual index
+            const virtualIndex = duration > 1 
+              ? (layerFrameIndex / (duration - 1)) * (numFrames - 1)
+              : 0;
+              
+            const indexA = Math.floor(virtualIndex);
+            const indexB = Math.min(numFrames - 1, indexA + 1);
+            const blendFactor = virtualIndex - indexA;
+
+            const frameA = layer.frames[indexA];
+            const frameB = layer.frames[indexB];
+            
+            // Retrieve or create cached image instances for both frames
+            let imgA = imageCacheRef.current.get(frameA.id);
+            if (!imgA) {
+              imgA = new Image();
+              imgA.src = frameA.url;
+              imageCacheRef.current.set(frameA.id, imgA);
+            }
+            
+            let imgB = imageCacheRef.current.get(frameB.id);
+            if (!imgB) {
+              imgB = new Image();
+              imgB.src = frameB.url;
+              imageCacheRef.current.set(frameB.id, imgB);
             }
 
-            // Wait for image loading only if not already loaded
-            if (!img.complete) {
+            // Wait for both images to be loaded
+            if (!imgA.complete) {
               await new Promise((resolve) => {
-                img!.onload = () => resolve(null);
-                img!.onerror = () => resolve(null);
+                imgA!.onload = () => resolve(null);
+                imgA!.onerror = () => resolve(null);
+              });
+            }
+            if (!imgB.complete) {
+              await new Promise((resolve) => {
+                imgB!.onload = () => resolve(null);
+                imgB!.onerror = () => resolve(null);
               });
             }
 
-            const imgAspect = img.width / img.height;
+            const imgAspect = imgA.width / imgA.height;
             const canvasAspect = canvas.width / canvas.height;
             let drawWidth, drawHeight;
             if (imgAspect > canvasAspect) {
@@ -171,11 +198,19 @@ export const Player = () => {
                 }
               }
 
-              // Draw image onto local offscreen canvas at 0, 0
-              oCtx.drawImage(img, 0, 0, drawWidth, drawHeight);
+              // Draw blended images onto local offscreen canvas
+              if (indexA === indexB) {
+                oCtx.drawImage(imgA, 0, 0, drawWidth, drawHeight);
+              } else {
+                oCtx.globalAlpha = 1 - blendFactor;
+                oCtx.drawImage(imgA, 0, 0, drawWidth, drawHeight);
+                oCtx.globalAlpha = blendFactor;
+                oCtx.drawImage(imgB, 0, 0, drawWidth, drawHeight);
+              }
 
               // Apply post-processing effects (Bloom, Aberration, Vignette, Grain) locally
               if (isFxEnabled && !comp.showDepthMap) {
+                oCtx.globalAlpha = 1.0; // Reset alpha for post effects
                 applyPostProcessing(oCtx, offscreenCanvas, layer.effects);
               }
               oCtx.restore();
