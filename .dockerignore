@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+tests_simulation/
+exports/
+temp_frames/
+.git/
+.gitignore
+.env*
+Dockerfile
+README.md
