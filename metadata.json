@@ -1,0 +1,8 @@
+{
+  "name": "Sequence Animator Pro",
+  "description": "Professional AI-assisted cinematic motion studio, featuring high-fidelity typography engine, 2.5D camera systems, and advanced motion processing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
