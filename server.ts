@@ -8,8 +8,14 @@ import { Worker } from "worker_threads";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const _filename = typeof import.meta !== "undefined" && import.meta.url 
+  ? fileURLToPath(import.meta.url) 
+  : __filename;
+
+const _dirname = typeof import.meta !== "undefined" && import.meta.url 
+  ? dirname(_filename) 
+  : __dirname;
+
 
 async function startServer() {
   const app = express();
@@ -45,7 +51,7 @@ async function startServer() {
     try {
       const isProd = process.env.NODE_ENV === 'production';
       const workerExt = isProd ? '.cjs' : '.ts';
-      const workerPath = path.join(__dirname, isProd ? "src/server/workers/exportWorker.cjs" : "src/server/workers/exportWorker.ts");
+      const workerPath = path.join(_dirname, isProd ? "src/server/workers/exportWorker.cjs" : "src/server/workers/exportWorker.ts");
       
       const worker = new Worker(workerPath, {
         workerData: {
